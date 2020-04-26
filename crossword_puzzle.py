@@ -148,6 +148,7 @@ def writeTexFile(grid, filename):
   with open(filename, 'wb') as f:
     f.write(latex_code.encode('utf-8'))
 
+status_bar = None
 icons_folder = 'icons'
 class CrosswordGridModel(QAbstractTableModel):
   def __init__(self, grid_data=None):
@@ -162,7 +163,7 @@ class CrosswordGridModel(QAbstractTableModel):
   def clear_solution(self):
     self.solution_data.fill('')
     self.layoutChanged.emit()
-    print('Solution cleared')
+    status_bar.showMessage("Solution cleared")
 
   def save_solution(self):
     shape = self.solution_data.shape
@@ -170,7 +171,6 @@ class CrosswordGridModel(QAbstractTableModel):
       for i in range(shape[0]):
         for j in range(shape[1]):
           f.write((self.solution_data[i][j] + '\n').encode('utf-8'))
-    print('Solution saved')
 
   def load_solution(self):
     shape = self.solution_data.shape
@@ -179,7 +179,7 @@ class CrosswordGridModel(QAbstractTableModel):
         for j in range(shape[1]):
           self.solution_data[i][j] = f.readline().strip()
     self.layoutChanged.emit()
-    print('Solution loaded')
+    status_bar.showMessage("Solution loaded")
 
   def load_grid_data(self, grid_data):
     self.grid_data = grid_data
@@ -228,7 +228,8 @@ class CrosswordGridModel(QAbstractTableModel):
     column = index.column()
     if role == Qt.EditRole:
       self.solution_data[row][column] = value
-      QMainWindow.statusBar().clearMessage()
+      if status_bar:
+        status_bar.clearMessage()
       return True
     return False
 
@@ -311,7 +312,7 @@ class CrosswordWidget(QWidget):
     self.save_button = QPushButton("Save")
     self.load_button = QPushButton("Load")
     self.clear_button = QPushButton("Clear")
-    self.save_button.clicked.connect(self.grid_model.save_solution)
+    self.save_button.clicked.connect(self.save_solution)
     self.load_button.clicked.connect(self.grid_model.load_solution)
     self.clear_button.clicked.connect(self.grid_model.clear_solution)
     self.buttons_layout.addWidget(self.save_button)
@@ -325,11 +326,17 @@ class CrosswordWidget(QWidget):
     self.main_layout.addWidget(self.clue_widget)
     self.setLayout(self.main_layout)
 
+  def save_solution(self):
+    self.grid_model.save_solution()
+    status_bar.showMessage("Solution saved")
+
 class CrosswordGridWindow(QMainWindow):
   def __init__(self, widget, window_width, window_height):
     QMainWindow.__init__(self)
     self.setCentralWidget(widget)
     self.setFixedSize(window_width, window_height)
+    global status_bar
+    status_bar = self.statusBar()
 
 def doPuzzle():
   url = 'https://www.anandabazar.com/others/crossword'
