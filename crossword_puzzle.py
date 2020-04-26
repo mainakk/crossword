@@ -164,6 +164,9 @@ class CrosswordGridModel(QAbstractTableModel):
   def columnCount(self, parent=QModelIndex()):
     return self.column_count
 
+  def headerData(self, section, orientation, role):
+    return None
+
   def data(self, index, role=Qt.DisplayRole):
     row = index.row()
     column = index.column()
@@ -178,9 +181,10 @@ class CrosswordGridModel(QAbstractTableModel):
     return None
 
 class CrosswordClueModel(QAbstractTableModel):
-  def __init__(self, clue_data=None):
+  def __init__(self, clue_data=None, clue_type=''):
     QAbstractTableModel.__init__(self)
     self.load_clue_data(clue_data)
+    self.clue_type = clue_type
 
   def load_clue_data(self, clue_data):
     self.clue_data = []
@@ -194,6 +198,14 @@ class CrosswordClueModel(QAbstractTableModel):
 
   def columnCount(self, parent=QModelIndex()):
     return self.column_count
+
+  def headerData(self, section, orientation, role):
+    if role != Qt.DisplayRole:
+        return None
+    if orientation == Qt.Horizontal:
+        return ('', self.clue_type)[section]
+    else:
+        return ''
 
   def data(self, index, role=Qt.DisplayRole):
     row = index.row()
@@ -211,19 +223,33 @@ class CrosswordWidget(QWidget):
       self.grid_table_view = QTableView()
       self.grid_table_view.setModel(self.grid_model)
 
-      self.horizontal_header = self.grid_table_view.horizontalHeader()
-      self.horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
-      self.horizontal_header.setDefaultSectionSize(grid_cell_length)
-      self.vertical_header = self.grid_table_view.verticalHeader()
-      self.vertical_header.setSectionResizeMode(QHeaderView.Fixed)
-      self.horizontal_header.setDefaultSectionSize(grid_cell_length)
+      self.grid_horizontal_header = self.grid_table_view.horizontalHeader()
+      self.grid_horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
+      self.grid_horizontal_header.setDefaultSectionSize(grid_cell_length)
+      self.grid_horizontal_header.hide()
+      self.grid_vertical_header = self.grid_table_view.verticalHeader()
+      self.grid_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+      self.grid_vertical_header.setDefaultSectionSize(grid_cell_length)
+      self.grid_vertical_header.hide()
 
-      self.clue_across_model = CrosswordClueModel(clue_across_data)
+      self.clue_across_model = CrosswordClueModel(clue_across_data, 'Across')
       self.clue_across_table_view = QTableView()
       self.clue_across_table_view.setModel(self.clue_across_model)
-      self.clue_down_model = CrosswordClueModel(clue_down_data)
+      self.clue_across_horizontal_header = self.clue_across_table_view.horizontalHeader()
+      self.clue_across_horizontal_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+      self.clue_across_vertical_header = self.clue_across_table_view.verticalHeader()
+      self.clue_across_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+      self.clue_across_vertical_header.setDefaultSectionSize(grid_cell_length)
+
+      self.clue_down_model = CrosswordClueModel(clue_down_data, 'Down')
       self.clue_down_table_view = QTableView()
       self.clue_down_table_view.setModel(self.clue_down_model)
+      self.clue_down_horizontal_header = self.clue_down_table_view.horizontalHeader()
+      self.clue_down_horizontal_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+      self.clue_down_vertical_header = self.clue_down_table_view.verticalHeader()
+      self.clue_down_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+      self.clue_down_vertical_header.setDefaultSectionSize(grid_cell_length)
+
       self.clue_layout = QHBoxLayout()
       self.clue_layout.addWidget(self.clue_across_table_view)
       self.clue_layout.addWidget(self.clue_down_table_view)
@@ -264,7 +290,7 @@ def doPuzzle():
   grid_cell_length = 24
   shape = grid.shape
   window_width = grid_cell_length * shape[0] * 2
-  window_height = grid_cell_length * shape[1] * 2
+  window_height = grid_cell_length * shape[1] * 2.5
 
   app = QApplication(sys.argv)
   widget = CrosswordWidget(grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
