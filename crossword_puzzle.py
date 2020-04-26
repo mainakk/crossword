@@ -250,7 +250,8 @@ class CrosswordClueModel(QAbstractTableModel):
   def load_clue_data(self, clue_data):
     self.clue_data = []
     for number, clue in clue_data:
-      self.clue_data.append((number, clue))
+      bangla_number = bangla.convert_english_digit_to_bangla_digit(str(number))
+      self.clue_data.append((bangla_number, clue))
     self.row_count = len(self.clue_data)
     self.column_count = 2
 
