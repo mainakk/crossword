@@ -4,6 +4,8 @@ import math
 from bs4 import BeautifulSoup
 import requests
 import bangla
+import crossword
+import ipuz
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -37,24 +39,18 @@ def saveImageAndCluesFromWebsite(url, filename):
   with open('vertical_clues.txt', 'wb') as f:
     f.write(vertical_clues)
 
-def convertImageToGrid(filename):
+def convertImageToGrid(filename, grid, puzzle):
   image_orig = cv2.imread(filename)
   image_gray = cv2.cvtColor(image_orig, cv2.COLOR_BGR2GRAY)
   nrows, ncols = image_gray.shape
 
-  crossword_len = 15
-
-  # each cell of grid contains 3 integers
-  # the first integer is 0 if it is a word cell else 1
-  # the second integer is horizontal clue index or 0
-  # the third boolean is vertical clue index or 0
-  grid = np.zeros((crossword_len, crossword_len, 3), dtype=int)
-  for i in range(crossword_len):
-    for j in range(crossword_len):
-      xmin = math.ceil(ncols * j / crossword_len)
-      xmax = math.floor(ncols * (j + 1) / crossword_len)
-      ymin = math.ceil(nrows * i / crossword_len)
-      ymax = math.floor(nrows * (i + 1) / crossword_len)
+  shape = grid.shape
+  for i in range(shape[0]):
+    for j in range(shape[1]):
+      xmin = math.ceil(ncols * j / shape[1])
+      xmax = math.floor(ncols * (j + 1) / shape[1])
+      ymin = math.ceil(nrows * i / shape[0])
+      ymax = math.floor(nrows * (i + 1) / shape[0])
       cell = image_gray[ymin:ymax, xmin:xmax]
 
       pixels = np.float32(cell.reshape(-1))
@@ -68,22 +64,42 @@ def convertImageToGrid(filename):
       gridVal = convertYValToGridVal(dominant)
       assert(gridVal in [0, 1])
       grid[i][j][0] = gridVal
+      if not gridVal:
+        puzzle[i, j].style = {'background-color': 'black'}
 
   clue_index = 0
-  for i in range(crossword_len):
-    for j in range(crossword_len):
+  for i in range(shape[0]):
+    for j in range(shape[1]):
       if not grid[i][j][0]:
         continue
       found_horizontal = False
-      if (j == 0 or not grid[i][j - 1][0]) and j != crossword_len - 1 and grid[i][j + 1][0]:
+      if (j == 0 or not grid[i][j - 1][0]) and j != shape[1] - 1 and grid[i][j + 1][0]:
         clue_index += 1
         grid[i][j][1] = clue_index
         found_horizontal = True
-      if (i == 0 or not grid[i - 1][j][0]) and i != crossword_len - 1 and grid[i + 1][j][0]:
+      if (i == 0 or not grid[i - 1][j][0]) and i != shape[0] - 1 and grid[i + 1][j][0]:
         if not found_horizontal:
           clue_index += 1
         grid[i][j][2] = clue_index
   return grid
+
+def populatePuzzleClues(puzzle):
+  with open('horizontal_clues.txt', encoding='utf-8', mode='r') as f:
+    for line in f.readlines():
+      number, clue = line.strip().split(' ', 1)
+      number = convertBanglaDigitsToEnglishDigits(number)
+      puzzle.clues.across[number] = clue
+
+  with open('vertical_clues.txt', encoding='utf-8', mode='r') as f:
+    for line in f.readlines():
+      number, clue = line.strip().split(' ', 1)
+      number = convertBanglaDigitsToEnglishDigits(number)
+      puzzle.clues.down[number] = clue
+
+def writeIpuzFile(puzzle, filename):
+  ipuz_dict = crossword.to_ipuz(puzzle)
+  with open(filename, 'w') as f:
+    f.write(ipuz.write(ipuz_dict))
 
 def writeTexFile(grid, filename):
   shape = grid.shape
@@ -127,8 +143,22 @@ def writeTexFile(grid, filename):
   with open(filename, 'wb') as f:
     f.write(latex_code.encode('utf-8'))
 
-url = 'https://www.anandabazar.com/others/crossword'
-filename = 'image.jpg'
-#saveImageAndCluesFromWebsite(url, filename)
-grid = convertImageToGrid(filename)
-writeTexFile(grid, 'crossword.tex')
+def doPuzzle():
+  url = 'https://www.anandabazar.com/others/crossword'
+  filename = 'image.jpg'
+  #saveImageAndCluesFromWebsite(url, filename)
+  crossword_len = 15
+
+  # Primary data-structure
+  # each cell of grid contains 3 integers
+  # the first integer is 1 if it is a word cell else 0
+  # the second integer is horizontal clue index or 0
+  # the third boolean is vertical clue index or 0
+  grid = np.zeros((crossword_len, crossword_len, 3), dtype=int)
+  puzzle = crossword.Crossword(crossword_len, crossword_len) # Secondary data-structure
+  convertImageToGrid(filename, grid, puzzle)
+  populatePuzzleClues(puzzle)
+  writeIpuzFile(puzzle, 'crossword.ipuz')
+  #writeTexFile(grid, 'crossword.tex')
+
+doPuzzle()
