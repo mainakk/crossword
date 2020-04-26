@@ -228,6 +228,7 @@ class CrosswordGridModel(QAbstractTableModel):
     column = index.column()
     if role == Qt.EditRole:
       self.solution_data[row][column] = value
+      QMainWindow.statusBar().clearMessage()
       return True
     return False
 
