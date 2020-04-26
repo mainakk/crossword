@@ -25,24 +25,29 @@ def convertBanglaDigitsToEnglishDigits(number):
     number = number.replace(b, e)
   return number
 
-def saveImageAndCluesFromWebsite(url, filename):
+def saveImageAndCluesFromWebsite(url):
   headers = requests.utils.default_headers()
   headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
   response = requests.get(url, headers)
   soup = BeautifulSoup(response.content, 'html.parser')
-  img_url = soup.find('div', class_='crossword-img-1').find('img').attrs['src']
+  img_div = soup.find('div', class_='crossword-img-1')
+  header = img_div.parent.find('h2').string
+  crossword_index = convertBanglaDigitsToEnglishDigits(header.strip().split()[-1])
+  img_url = img_div.find('img').attrs['src']
   img_url = 'http:' + img_url
   response = requests.get(img_url, headers)
-  with open('image.jpg', 'wb') as f:
+  with open('image-{}.jpg'.format(crossword_index), 'wb') as f:
     f.write(response.content)
 
   horizontal_clues = soup.find('div', class_='crosswors-across').text.strip().encode('utf-8')
   vertical_clues = soup.find('div', class_='crosswors-down').text.strip().encode('utf-8')
-  with open('horizontal_clues.txt', 'wb') as f:
+  with open('horizontal-clues-{}.txt'.format(crossword_index), 'wb') as f:
     f.write(horizontal_clues)
 
-  with open('vertical_clues.txt', 'wb') as f:
+  with open('vertical-clues-{}.txt'.format(crossword_index), 'wb') as f:
     f.write(vertical_clues)
+
+  return crossword_index
 
 def convertImageToGrid(filename, grid, puzzle):
   image_orig = cv2.imread(filename)
@@ -88,14 +93,14 @@ def convertImageToGrid(filename, grid, puzzle):
         grid[i][j][2] = clue_index
   return grid
 
-def populatePuzzleClues(puzzle):
-  with open('horizontal_clues.txt', encoding='utf-8', mode='r') as f:
+def populatePuzzleClues(crossword_index, puzzle):
+  with open('horizontal-clues-{}.txt'.format(crossword_index), encoding='utf-8', mode='r') as f:
     for line in f.readlines():
       number, clue = line.strip().split(' ', 1)
       number = convertBanglaDigitsToEnglishDigits(number)
       puzzle.clues.across[number] = clue[:-1]
 
-  with open('vertical_clues.txt', encoding='utf-8', mode='r') as f:
+  with open('vertical-clues-{}.txt'.format(crossword_index), encoding='utf-8', mode='r') as f:
     for line in f.readlines():
       number, clue = line.strip().split(' ', 1)
       number = convertBanglaDigitsToEnglishDigits(number)
@@ -153,8 +158,9 @@ icons_folder = 'icons'
 font_name ='Kalpurush'
 font_size = 13
 class CrosswordGridModel(QAbstractTableModel):
-  def __init__(self, grid_data=None):
+  def __init__(self, crossword_index=-1, grid_data=None):
     QAbstractTableModel.__init__(self)
+    self.crossword_index = crossword_index
     self.load_grid_data(grid_data)
     shape = grid_data.shape
     self.solution_data = np.full((shape[0], shape[1]), '', dtype=object)
@@ -171,7 +177,7 @@ class CrosswordGridModel(QAbstractTableModel):
     if not np.any(self.solution_data):
       return False
     shape = self.solution_data.shape
-    with open('solution.txt', 'wb') as f:
+    with open('solution-{}.txt'.format(self.crossword_index), 'wb') as f:
       for i in range(shape[0]):
         for j in range(shape[1]):
           f.write((self.solution_data[i][j] + '\n').encode('utf-8'))
@@ -179,12 +185,15 @@ class CrosswordGridModel(QAbstractTableModel):
 
   def load_solution(self):
     shape = self.solution_data.shape
-    with open('solution.txt', encoding='utf-8', mode='r') as f:
-      for i in range(shape[0]):
-        for j in range(shape[1]):
-          self.solution_data[i][j] = f.readline().strip()
-    self.layoutChanged.emit()
-    status_bar.showMessage("Solution loaded")
+    try:
+      with open('solution-{}.txt'.format(self.crossword_index), encoding='utf-8', mode='r') as f:
+        for i in range(shape[0]):
+          for j in range(shape[1]):
+            self.solution_data[i][j] = f.readline().strip()
+      self.layoutChanged.emit()
+      status_bar.showMessage("Solution loaded")
+    except IOError:
+      status_bar.showMessage("No saved solution")
 
   def load_grid_data(self, grid_data):
     self.grid_data = grid_data
@@ -285,9 +294,9 @@ class CrosswordClueModel(QAbstractTableModel):
     return None
 
 class CrosswordWidget(QWidget):
-  def __init__(self, grid_data, grid_cell_length, clue_across_data, clue_down_data):
+  def __init__(self, crossword_index, grid_data, grid_cell_length, clue_across_data, clue_down_data):
     QWidget.__init__(self)
-    self.grid_model = CrosswordGridModel(grid_data)
+    self.grid_model = CrosswordGridModel(crossword_index, grid_data)
     self.grid_table_view = QTableView(self)
     self.grid_table_view.setModel(self.grid_model)
     self.grid_horizontal_header = self.grid_table_view.horizontalHeader()
@@ -352,8 +361,7 @@ class CrosswordGridWindow(QMainWindow):
 
 def doPuzzle():
   url = 'https://www.anandabazar.com/others/crossword'
-  filename = 'image.jpg'
-  #saveImageAndCluesFromWebsite(url, filename)
+  crossword_index = saveImageAndCluesFromWebsite(url)
   crossword_len = 15
 
   # Primary data-structure
@@ -364,9 +372,9 @@ def doPuzzle():
   grid = np.zeros((crossword_len, crossword_len, 3), dtype=int)
   puzzle = crossword.Crossword(crossword_len, crossword_len) # Secondary data-structure
   puzzle.meta.kind = 'http://ipuz.org/crossword#1'
-  convertImageToGrid(filename, grid, puzzle)
-  populatePuzzleClues(puzzle)
-  writeIpuzFile(puzzle, 'crossword.ipuz')
+  convertImageToGrid('image-{}.jpg'.format(crossword_index), grid, puzzle)
+  populatePuzzleClues(crossword_index, puzzle)
+  #writeIpuzFile(puzzle, 'crossword.ipuz')
   #writeTexFile(grid, 'crossword.tex')
   #import pdb;pdb.set_trace()
 
@@ -376,7 +384,7 @@ def doPuzzle():
   window_height = grid_cell_length * shape[1] * 2.5
 
   app = QApplication(sys.argv)
-  widget = CrosswordWidget(grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
+  widget = CrosswordWidget(crossword_index, grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
   window = CrosswordGridWindow(widget, window_width, window_height)
   window.show()
   sys.exit(app.exec_())
