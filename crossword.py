@@ -3,7 +3,6 @@ import numpy as np
 import math
 from bs4 import BeautifulSoup
 import requests
-import imutils
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -12,7 +11,7 @@ def convertYValToGridVal(y_val):
   y_max_min = y_max - (y_max - y_min) / 5 # min of y_max
   return 0 if y_val < y_min_max else 1 if y_val > y_max_min else -1
 
-def saveImageFromWebsite(url, filename):
+def saveImageAndCluesFromWebsite(url, filename):
   headers = requests.utils.default_headers()
   headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
   response = requests.get(url, headers)
@@ -20,9 +19,16 @@ def saveImageFromWebsite(url, filename):
   img_url = soup.find('div', class_='crossword-img-1').find('img').attrs['src']
   img_url = 'http:' + img_url
   response = requests.get(img_url, headers)
-
   with open('image.jpg', 'wb') as f:
     f.write(response.content)
+
+  horizontal_clues = soup.find('div', class_='crosswors-across').text.strip().encode('utf-8')
+  vertical_clues = soup.find('div', class_='crosswors-down').text.strip().encode('utf-8')
+  with open('horizontal_clues.txt', 'wb') as f:
+    f.write(horizontal_clues)
+
+  with open('vertical_clues.txt', 'wb') as f:
+    f.write(vertical_clues)
 
 def convertImageToGrid(filename):
   image_orig = cv2.imread(filename)
@@ -93,6 +99,6 @@ def printLatexCode(grid):
 
 url = 'https://www.anandabazar.com/others/crossword'
 filename = 'image.jpg'
-saveImageFromWebsite(url, filename)
+saveImageAndCluesFromWebsite(url, filename)
 grid = convertImageToGrid(filename)
 printLatexCode(grid)
