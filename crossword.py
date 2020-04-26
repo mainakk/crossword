@@ -3,6 +3,7 @@ import numpy as np
 import math
 from bs4 import BeautifulSoup
 import requests
+import bangla
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -10,6 +11,12 @@ def convertYValToGridVal(y_val):
   y_min_max = y_min + (y_max - y_min) / 5 # max of y_min
   y_max_min = y_max - (y_max - y_min) / 5 # min of y_max
   return 0 if y_val < y_min_max else 1 if y_val > y_max_min else -1
+
+english_digit_by_bangla_digit = {k : v for k, v in zip(bangla.bangla_number, bangla.english_number)}
+def convertBanglaDigitsToEnglishDigits(number):
+  for b, e in english_digit_by_bangla_digit.items():
+    number = number.replace(b, e)
+  return number
 
 def saveImageAndCluesFromWebsite(url, filename):
   headers = requests.utils.default_headers()
@@ -78,27 +85,50 @@ def convertImageToGrid(filename):
         grid[i][j][2] = clue_index
   return grid
 
-def printLatexCode(grid):
+def writeTexFile(grid, filename):
   shape = grid.shape
-  code = r'\begin{Puzzle}{' + str(shape[0]) + '}{' + str(shape[1]) + '}}%\n'
+  latex_code = r'\documentclass{article}' + '\n'
+  latex_code += r'\usepackage[banglamainfont=Kalpurush, banglattfont=Siyam Rupali]{latexbangla}' + '\n'
+  latex_code += r'\usepackage{cwpuzzle}' + '\n'
+  latex_code += r'\begin{document}' + '\n'
+  latex_code += r'\begin{Puzzle}{' + str(shape[0]) + '}{' + str(shape[1]) + '}}%\n'
   for i in range(shape[0]):
-    code += '\t'
+    latex_code += '\t'
     for j in range(shape[1]):
-      code += '|'
+      latex_code += '|'
       if not grid[i][j][0]:
-        code += '*'
+        latex_code += '*'
       else:
         clue_index = grid[i][j][1] or grid[i][j][2]
         if clue_index:
-          code += '[{}]X'.format(clue_index)
+          latex_code += '[{}]X'.format(clue_index)
         else:
-          code += 'X'
-    code += '|.\n'
-  code += r'\end{Puzzle}'
-  print(code)
+          latex_code += 'X'
+    latex_code += '|.\n'
+  latex_code += r'\end{Puzzle}' + '\n'
+
+  latex_code += r'\begin{PuzzleClues}{\textbf{Across}}%' + '\n'
+  with open('horizontal_clues.txt', encoding='utf-8', mode='r') as f:
+    for line in f.readlines():
+      number, clue = line.strip().split(' ', 1)
+      number = convertBanglaDigitsToEnglishDigits(number)
+      latex_code += '\Clue{' + number + '}{}{' + clue + '}%\n'
+  latex_code += r'\end{PuzzleClues}%' + '\n'
+
+  latex_code += r'\begin{PuzzleClues}{\textbf{Down}}%' + '\n'
+  with open('vertical_clues.txt', encoding='utf-8', mode='r') as f:
+    for line in f.readlines():
+      number, clue = line.strip().split(' ', 1)
+      number = convertBanglaDigitsToEnglishDigits(number)
+      latex_code += '\Clue{' + number + '}{}{' + clue + '}%\n'
+  latex_code += r'\end{PuzzleClues}%' + '\n'
+
+  latex_code += r'\end{document}'
+  with open(filename, 'wb') as f:
+    f.write(latex_code.encode('utf-8'))
 
 url = 'https://www.anandabazar.com/others/crossword'
 filename = 'image.jpg'
-saveImageAndCluesFromWebsite(url, filename)
+#saveImageAndCluesFromWebsite(url, filename)
 grid = convertImageToGrid(filename)
-printLatexCode(grid)
+writeTexFile(grid, 'crossword.tex')
