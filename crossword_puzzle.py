@@ -7,9 +7,9 @@ import bangla
 import crossword
 import ipuz
 import sys
-from PySide2.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PySide2.QtCore import Qt, QAbstractTableModel, QModelIndex, QTimer
 from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QIcon
-from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy, QTableView, QWidget, QMainWindow, QApplication
+from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy, QTableView, QWidget, QMainWindow, QApplication, QPushButton
 import os
 
 def convertYValToGridVal(y_val):
@@ -153,13 +153,34 @@ class CrosswordGridModel(QAbstractTableModel):
   def __init__(self, grid_data=None):
     QAbstractTableModel.__init__(self)
     self.load_grid_data(grid_data)
+    shape = grid_data.shape
+    self.solution_data = np.full((shape[0], shape[1]), '', dtype=object)
+    self.timer = QTimer(self)
+
+  def clear_solution(self):
+    self.solution_data.fill('')
+    self.layoutChanged.emit()
+
+  def save_solution(self):
+    shape = self.solution_data.shape
+    with open('solution.txt', 'wb') as f:
+      for i in range(shape[0]):
+        for j in range(shape[1]):
+          f.write((self.solution_data[i][j] + '\n').encode('utf-8'))
+
+  def load_solution(self):
+    shape = self.solution_data.shape
+    with open('solution.txt', encoding='utf-8', mode='r') as f:
+      for i in range(shape[0]):
+        for j in range(shape[1]):
+          self.solution_data[i][j] = f.readline().strip()
+    self.layoutChanged.emit()
 
   def load_grid_data(self, grid_data):
     self.grid_data = grid_data
     shape = grid_data.shape
     self.row_count = shape[0]
     self.column_count = shape[1]
-    self.solution_data = np.full((shape[0], shape[1]), '', dtype=object)
 
   def rowCount(self, parent=QModelIndex()):
     return self.row_count
@@ -246,48 +267,57 @@ class CrosswordClueModel(QAbstractTableModel):
 
 class CrosswordWidget(QWidget):
   def __init__(self, grid_data, grid_cell_length, clue_across_data, clue_down_data):
-      QWidget.__init__(self)
-      self.grid_model = CrosswordGridModel(grid_data)
-      self.grid_table_view = QTableView()
-      self.grid_table_view.setModel(self.grid_model)
+    QWidget.__init__(self)
+    self.grid_model = CrosswordGridModel(grid_data)
+    self.grid_table_view = QTableView(self)
+    self.grid_table_view.setModel(self.grid_model)
+    self.grid_horizontal_header = self.grid_table_view.horizontalHeader()
+    self.grid_horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
+    self.grid_horizontal_header.setDefaultSectionSize(grid_cell_length)
+    self.grid_horizontal_header.hide()
+    self.grid_vertical_header = self.grid_table_view.verticalHeader()
+    self.grid_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+    self.grid_vertical_header.setDefaultSectionSize(grid_cell_length)
+    self.grid_vertical_header.hide()
+    self.clue_across_model = CrosswordClueModel(clue_across_data, 'পাশাপাশি')
+    self.clue_across_table_view = QTableView(self)
+    self.clue_across_table_view.setModel(self.clue_across_model)
+    self.clue_across_horizontal_header = self.clue_across_table_view.horizontalHeader()
+    self.clue_across_horizontal_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+    self.clue_across_vertical_header = self.clue_across_table_view.verticalHeader()
+    self.clue_across_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+    self.clue_across_vertical_header.setDefaultSectionSize(grid_cell_length)
+    self.clue_down_model = CrosswordClueModel(clue_down_data, 'উপর নীচে')
+    self.clue_down_table_view = QTableView(self)
+    self.clue_down_table_view.setModel(self.clue_down_model)
+    self.clue_down_horizontal_header = self.clue_down_table_view.horizontalHeader()
+    self.clue_down_horizontal_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+    self.clue_down_vertical_header = self.clue_down_table_view.verticalHeader()
+    self.clue_down_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+    self.clue_down_vertical_header.setDefaultSectionSize(grid_cell_length)
 
-      self.grid_horizontal_header = self.grid_table_view.horizontalHeader()
-      self.grid_horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
-      self.grid_horizontal_header.setDefaultSectionSize(grid_cell_length)
-      self.grid_horizontal_header.hide()
-      self.grid_vertical_header = self.grid_table_view.verticalHeader()
-      self.grid_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
-      self.grid_vertical_header.setDefaultSectionSize(grid_cell_length)
-      self.grid_vertical_header.hide()
-
-      self.clue_across_model = CrosswordClueModel(clue_across_data, 'পাশাপাশি')
-      self.clue_across_table_view = QTableView()
-      self.clue_across_table_view.setModel(self.clue_across_model)
-      self.clue_across_horizontal_header = self.clue_across_table_view.horizontalHeader()
-      self.clue_across_horizontal_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-      self.clue_across_vertical_header = self.clue_across_table_view.verticalHeader()
-      self.clue_across_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
-      self.clue_across_vertical_header.setDefaultSectionSize(grid_cell_length)
-
-      self.clue_down_model = CrosswordClueModel(clue_down_data, 'উপর নীচে')
-      self.clue_down_table_view = QTableView()
-      self.clue_down_table_view.setModel(self.clue_down_model)
-      self.clue_down_horizontal_header = self.clue_down_table_view.horizontalHeader()
-      self.clue_down_horizontal_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-      self.clue_down_vertical_header = self.clue_down_table_view.verticalHeader()
-      self.clue_down_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
-      self.clue_down_vertical_header.setDefaultSectionSize(grid_cell_length)
-
-      self.clue_layout = QHBoxLayout()
-      self.clue_layout.addWidget(self.clue_across_table_view)
-      self.clue_layout.addWidget(self.clue_down_table_view)
-      self.clue_widget = QWidget()
-      self.clue_widget.setLayout(self.clue_layout)
-
-      self.main_layout = QVBoxLayout()
-      self.main_layout.addWidget(self.grid_table_view)
-      self.main_layout.addWidget(self.clue_widget)
-      self.setLayout(self.main_layout)
+    self.clue_layout = QHBoxLayout(self)
+    self.clue_layout.addWidget(self.clue_across_table_view)
+    self.clue_layout.addWidget(self.clue_down_table_view)
+    self.clue_widget = QWidget(self)
+    self.clue_widget.setLayout(self.clue_layout)
+    self.buttons_layout = QHBoxLayout(self)
+    self.save_button = QPushButton("Save")
+    self.load_button = QPushButton("Load")
+    self.clear_button = QPushButton("Clear")
+    self.save_button.clicked.connect(self.grid_model.save_solution)
+    self.load_button.clicked.connect(self.grid_model.load_solution)
+    self.clear_button.clicked.connect(self.grid_model.clear_solution)
+    self.buttons_layout.addWidget(self.save_button)
+    self.buttons_layout.addWidget(self.load_button)
+    self.buttons_layout.addWidget(self.clear_button)
+    self.buttons_widget = QWidget(self)
+    self.buttons_widget.setLayout(self.buttons_layout)
+    self.main_layout = QVBoxLayout(self)
+    self.main_layout.addWidget(self.grid_table_view)
+    self.main_layout.addWidget(self.buttons_widget)
+    self.main_layout.addWidget(self.clue_widget)
+    self.setLayout(self.main_layout)
 
 class CrosswordGridWindow(QMainWindow):
   def __init__(self, widget, window_width, window_height):
