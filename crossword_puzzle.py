@@ -33,6 +33,9 @@ def saveImageAndCluesFromWebsite(url):
   img_div = soup.find('div', class_='crossword-img-1')
   header = img_div.parent.find('h2').string
   crossword_index = convertBanglaDigitsToEnglishDigits(header.strip().split()[-1])
+  with open('crossword-index.txt', 'w') as f:
+    f.write(crossword_index)
+
   img_url = img_div.find('img').attrs['src']
   img_url = 'http:' + img_url
   response = requests.get(img_url, headers)
@@ -352,8 +355,9 @@ class CrosswordWidget(QWidget):
       status_bar.showMessage("Solution saved")
 
 class CrosswordGridWindow(QMainWindow):
-  def __init__(self, widget, window_width, window_height):
+  def __init__(self, crossword_index, widget, window_width, window_height):
     QMainWindow.__init__(self)
+    self.setWindowTitle('শব্দছক ' + bangla.convert_english_digit_to_bangla_digit(crossword_index))
     self.setCentralWidget(widget)
     self.setFixedSize(window_width, window_height)
     global status_bar
@@ -361,7 +365,9 @@ class CrosswordGridWindow(QMainWindow):
 
 def doPuzzle():
   url = 'https://www.anandabazar.com/others/crossword'
-  crossword_index = saveImageAndCluesFromWebsite(url)
+  #crossword_index = saveImageAndCluesFromWebsite(url)
+  with open('crossword-index.txt', 'r') as f:
+    crossword_index = f.readline().strip()
   crossword_len = 15
 
   # Primary data-structure
@@ -385,7 +391,7 @@ def doPuzzle():
 
   app = QApplication(sys.argv)
   widget = CrosswordWidget(crossword_index, grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
-  window = CrosswordGridWindow(widget, window_width, window_height)
+  window = CrosswordGridWindow(crossword_index, widget, window_width, window_height)
   window.show()
   sys.exit(app.exec_())
 
