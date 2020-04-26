@@ -150,6 +150,7 @@ def writeTexFile(grid, filename):
 
 status_bar = None
 icons_folder = 'icons'
+font_name ='Kalpurush'
 font_size = 13
 class CrosswordGridModel(QAbstractTableModel):
   def __init__(self, grid_data=None):
@@ -226,8 +227,7 @@ class CrosswordGridModel(QAbstractTableModel):
     elif role == Qt.BackgroundRole:
       return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
     elif role == Qt.FontRole:
-      font = QFont()
-      font.setPointSize(font_size)
+      font = QFont(font_name, font_size)
       return font
     return None
 
@@ -265,9 +265,7 @@ class CrosswordClueModel(QAbstractTableModel):
     if role == Qt.DisplayRole:
         return ('', self.clue_type)[section] if orientation == Qt.Horizontal else ''
     elif role == Qt.FontRole:
-      font = QFont()
-      font.setPointSize(font_size)
-      font.setBold(True)
+      font = QFont(font_name, font_size, QFont.Bold)
       return font
     return None
 
@@ -282,8 +280,7 @@ class CrosswordClueModel(QAbstractTableModel):
     if role == Qt.DisplayRole:
       return cell_data
     elif role == Qt.FontRole:
-      font = QFont()
-      font.setPointSize(font_size)
+      font = QFont(font_name, font_size)
       return font
     return None
 
