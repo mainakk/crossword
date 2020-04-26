@@ -159,6 +159,7 @@ class CrosswordGridModel(QAbstractTableModel):
     shape = grid_data.shape
     self.row_count = shape[0]
     self.column_count = shape[1]
+    self.solution_data = np.chararray((shape[0], shape[1]))
 
   def rowCount(self, parent=QModelIndex()):
     return self.row_count
@@ -177,7 +178,7 @@ class CrosswordGridModel(QAbstractTableModel):
     clue_index = cell_data[1] or cell_data[2]
 
     if role == Qt.DisplayRole:
-      return ''
+      return self.solution_data[row][column]
     elif role == Qt.DecorationRole:
       if clue_index:
         icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
@@ -187,6 +188,14 @@ class CrosswordGridModel(QAbstractTableModel):
     elif role == Qt.BackgroundRole:
       return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
     return None
+
+  def setData(self, index, value, role=Qt.EditRole):
+    row = index.row()
+    column = index.column()
+    if role == Qt.EditRole:
+      self.solution_data[row][column] = value
+      return True
+    return True
 
 class CrosswordClueModel(QAbstractTableModel):
   def __init__(self, clue_data=None, clue_type=''):
