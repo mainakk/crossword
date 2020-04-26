@@ -6,6 +6,10 @@ import requests
 import bangla
 import crossword
 import ipuz
+import sys
+from PySide2.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy, QTableView, QWidget, QMainWindow, QApplication
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -143,6 +147,100 @@ def writeTexFile(grid, filename):
   with open(filename, 'wb') as f:
     f.write(latex_code.encode('utf-8'))
 
+class CrosswordGridModel(QAbstractTableModel):
+  def __init__(self, grid_data=None):
+    QAbstractTableModel.__init__(self)
+    self.load_grid_data(grid_data)
+
+  def load_grid_data(self, grid_data):
+    self.grid_data = grid_data
+    shape = grid_data.shape
+    self.row_count = shape[0]
+    self.column_count = shape[1]
+
+  def rowCount(self, parent=QModelIndex()):
+    return self.row_count
+
+  def columnCount(self, parent=QModelIndex()):
+    return self.column_count
+
+  def data(self, index, role=Qt.DisplayRole):
+    row = index.row()
+    column = index.column()
+    cell_data = self.grid_data[row][column]
+    is_word_cell = cell_data[0]
+    clue_index = cell_data[1] or cell_data[2]
+
+    if role == Qt.DisplayRole:
+      return str(clue_index) if clue_index else ''
+    elif role == Qt.BackgroundRole:
+      return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
+    return None
+
+class CrosswordClueModel(QAbstractTableModel):
+  def __init__(self, clue_data=None):
+    QAbstractTableModel.__init__(self)
+    self.load_clue_data(clue_data)
+
+  def load_clue_data(self, clue_data):
+    self.clue_data = []
+    for number, clue in clue_data:
+      self.clue_data.append((number, clue))
+    self.row_count = len(self.clue_data)
+    self.column_count = 2
+
+  def rowCount(self, parent=QModelIndex()):
+    return self.row_count
+
+  def columnCount(self, parent=QModelIndex()):
+    return self.column_count
+
+  def data(self, index, role=Qt.DisplayRole):
+    row = index.row()
+    column = index.column()
+    cell_data = self.clue_data[row][column]
+
+    if role == Qt.DisplayRole:
+      return cell_data
+    return None
+
+class CrosswordWidget(QWidget):
+  def __init__(self, grid_data, grid_cell_length, clue_across_data, clue_down_data):
+      QWidget.__init__(self)
+      self.grid_model = CrosswordGridModel(grid_data)
+      self.grid_table_view = QTableView()
+      self.grid_table_view.setModel(self.grid_model)
+
+      self.horizontal_header = self.grid_table_view.horizontalHeader()
+      self.horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
+      self.horizontal_header.setDefaultSectionSize(grid_cell_length)
+      self.vertical_header = self.grid_table_view.verticalHeader()
+      self.vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+      self.horizontal_header.setDefaultSectionSize(grid_cell_length)
+
+      self.clue_across_model = CrosswordClueModel(clue_across_data)
+      self.clue_across_table_view = QTableView()
+      self.clue_across_table_view.setModel(self.clue_across_model)
+      self.clue_down_model = CrosswordClueModel(clue_down_data)
+      self.clue_down_table_view = QTableView()
+      self.clue_down_table_view.setModel(self.clue_down_model)
+      self.clue_layout = QHBoxLayout()
+      self.clue_layout.addWidget(self.clue_across_table_view)
+      self.clue_layout.addWidget(self.clue_down_table_view)
+      self.clue_widget = QWidget()
+      self.clue_widget.setLayout(self.clue_layout)
+
+      self.main_layout = QVBoxLayout()
+      self.main_layout.addWidget(self.grid_table_view)
+      self.main_layout.addWidget(self.clue_widget)
+      self.setLayout(self.main_layout)
+
+class CrosswordGridWindow(QMainWindow):
+  def __init__(self, widget, window_width, window_height):
+    QMainWindow.__init__(self)
+    self.setCentralWidget(widget)
+    self.setFixedSize(window_width, window_height)
+
 def doPuzzle():
   url = 'https://www.anandabazar.com/others/crossword'
   filename = 'image.jpg'
@@ -156,9 +254,24 @@ def doPuzzle():
   # the third boolean is vertical clue index or 0
   grid = np.zeros((crossword_len, crossword_len, 3), dtype=int)
   puzzle = crossword.Crossword(crossword_len, crossword_len) # Secondary data-structure
+  puzzle.meta.kind = 'http://ipuz.org/crossword#1'
   convertImageToGrid(filename, grid, puzzle)
   populatePuzzleClues(puzzle)
   writeIpuzFile(puzzle, 'crossword.ipuz')
   #writeTexFile(grid, 'crossword.tex')
+  #import pdb;pdb.set_trace()
 
-doPuzzle()
+  grid_cell_length = 24
+  shape = grid.shape
+  window_width = grid_cell_length * shape[0] * 2
+  window_height = grid_cell_length * shape[1] * 2
+
+  app = QApplication(sys.argv)
+  widget = CrosswordWidget(grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
+  window = CrosswordGridWindow(widget, window_width, window_height)
+  window.show()
+  sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+  doPuzzle()
