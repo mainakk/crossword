@@ -8,8 +8,9 @@ import crossword
 import ipuz
 import sys
 from PySide2.QtCore import Qt, QAbstractTableModel, QModelIndex
-from PySide2.QtGui import QColor
+from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QIcon
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy, QTableView, QWidget, QMainWindow, QApplication
+import os
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -92,13 +93,13 @@ def populatePuzzleClues(puzzle):
     for line in f.readlines():
       number, clue = line.strip().split(' ', 1)
       number = convertBanglaDigitsToEnglishDigits(number)
-      puzzle.clues.across[number] = clue
+      puzzle.clues.across[number] = clue[:-1]
 
   with open('vertical_clues.txt', encoding='utf-8', mode='r') as f:
     for line in f.readlines():
       number, clue = line.strip().split(' ', 1)
       number = convertBanglaDigitsToEnglishDigits(number)
-      puzzle.clues.down[number] = clue
+      puzzle.clues.down[number] = clue[:-1]
 
 def writeIpuzFile(puzzle, filename):
   ipuz_dict = crossword.to_ipuz(puzzle)
@@ -147,6 +148,7 @@ def writeTexFile(grid, filename):
   with open(filename, 'wb') as f:
     f.write(latex_code.encode('utf-8'))
 
+icons_folder = 'icons'
 class CrosswordGridModel(QAbstractTableModel):
   def __init__(self, grid_data=None):
     QAbstractTableModel.__init__(self)
@@ -175,7 +177,13 @@ class CrosswordGridModel(QAbstractTableModel):
     clue_index = cell_data[1] or cell_data[2]
 
     if role == Qt.DisplayRole:
-      return str(clue_index) if clue_index else ''
+      return ''
+    elif role == Qt.DecorationRole:
+      if clue_index:
+        icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
+        return QIcon(icon_path)
+      else:
+        return None
     elif role == Qt.BackgroundRole:
       return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
     return None
@@ -232,7 +240,7 @@ class CrosswordWidget(QWidget):
       self.grid_vertical_header.setDefaultSectionSize(grid_cell_length)
       self.grid_vertical_header.hide()
 
-      self.clue_across_model = CrosswordClueModel(clue_across_data, 'Across')
+      self.clue_across_model = CrosswordClueModel(clue_across_data, 'পাশাপাশি')
       self.clue_across_table_view = QTableView()
       self.clue_across_table_view.setModel(self.clue_across_model)
       self.clue_across_horizontal_header = self.clue_across_table_view.horizontalHeader()
@@ -241,7 +249,7 @@ class CrosswordWidget(QWidget):
       self.clue_across_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
       self.clue_across_vertical_header.setDefaultSectionSize(grid_cell_length)
 
-      self.clue_down_model = CrosswordClueModel(clue_down_data, 'Down')
+      self.clue_down_model = CrosswordClueModel(clue_down_data, 'উপর নীচে')
       self.clue_down_table_view = QTableView()
       self.clue_down_table_view.setModel(self.clue_down_model)
       self.clue_down_horizontal_header = self.clue_down_table_view.horizontalHeader()
