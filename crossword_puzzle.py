@@ -150,6 +150,7 @@ def writeTexFile(grid, filename):
 
 status_bar = None
 icons_folder = 'icons'
+font_size = 13
 class CrosswordGridModel(QAbstractTableModel):
   def __init__(self, grid_data=None):
     QAbstractTableModel.__init__(self)
@@ -224,6 +225,10 @@ class CrosswordGridModel(QAbstractTableModel):
         return None
     elif role == Qt.BackgroundRole:
       return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
+    elif role == Qt.FontRole:
+      font = QFont()
+      font.setPointSize(font_size)
+      return font
     return None
 
   def setData(self, index, value, role=Qt.EditRole):
@@ -256,12 +261,14 @@ class CrosswordClueModel(QAbstractTableModel):
     return self.column_count
 
   def headerData(self, section, orientation, role):
-    if role != Qt.DisplayRole:
-        return None
-    if orientation == Qt.Horizontal:
-        return ('', self.clue_type)[section]
-    else:
-        return ''
+    if role == Qt.DisplayRole:
+        return ('', self.clue_type)[section] if orientation == Qt.Horizontal else ''
+    elif role == Qt.FontRole:
+      font = QFont()
+      font.setPointSize(font_size)
+      font.setBold(True)
+      return font
+    return None
 
   def flags(self, index):
     return Qt.ItemIsEnabled
@@ -273,6 +280,10 @@ class CrosswordClueModel(QAbstractTableModel):
 
     if role == Qt.DisplayRole:
       return cell_data
+    elif role == Qt.FontRole:
+      font = QFont()
+      font.setPointSize(font_size)
+      return font
     return None
 
 class CrosswordWidget(QWidget):
