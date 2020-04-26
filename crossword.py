@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 import math
+from bs4 import BeautifulSoup
+import requests
+import imutils
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -9,10 +12,22 @@ def convertYValToGridVal(y_val):
   y_max_min = y_max - (y_max - y_min) / 5 # min of y_max
   return 0 if y_val < y_min_max else 1 if y_val > y_max_min else -1
 
+def saveImageFromWebsite(url, filename):
+  headers = requests.utils.default_headers()
+  headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0'})
+  response = requests.get(url, headers)
+  soup = BeautifulSoup(response.content, 'html.parser')
+  img_url = soup.find('div', class_='crossword-img-1').find('img').attrs['src']
+  img_url = 'http:' + img_url
+  response = requests.get(img_url, headers)
+
+  with open('image.jpg', 'wb') as f:
+    f.write(response.content)
+
 def convertImageToGrid(filename):
-  imgOrig = cv2.imread(filename)
-  imgGray = cv2.cvtColor(imgOrig, cv2.COLOR_BGR2GRAY)
-  nrows, ncols = imgGray.shape
+  image_orig = cv2.imread(filename)
+  image_gray = cv2.cvtColor(image_orig, cv2.COLOR_BGR2GRAY)
+  nrows, ncols = image_gray.shape
 
   crossword_len = 15
 
@@ -27,7 +42,7 @@ def convertImageToGrid(filename):
       xmax = math.floor(ncols * (j + 1) / crossword_len)
       ymin = math.ceil(nrows * i / crossword_len)
       ymax = math.floor(nrows * (i + 1) / crossword_len)
-      cell = imgGray[ymin:ymax, xmin:xmax]
+      cell = image_gray[ymin:ymax, xmin:xmax]
 
       pixels = np.float32(cell.reshape(-1))
       n_colors = 2
@@ -76,5 +91,8 @@ def printLatexCode(grid):
   code += r'\end{Puzzle}'
   print(code)
 
-grid = convertImageToGrid('image.jpg')
+url = 'https://www.anandabazar.com/others/crossword'
+filename = 'image.jpg'
+saveImageFromWebsite(url, filename)
+grid = convertImageToGrid(filename)
 printLatexCode(grid)
