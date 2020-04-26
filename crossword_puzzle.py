@@ -156,10 +156,13 @@ class CrosswordGridModel(QAbstractTableModel):
     shape = grid_data.shape
     self.solution_data = np.full((shape[0], shape[1]), '', dtype=object)
     self.timer = QTimer(self)
+    self.timer.timeout.connect(self.save_solution)
+    self.timer.start(5000)
 
   def clear_solution(self):
     self.solution_data.fill('')
     self.layoutChanged.emit()
+    print('Solution cleared')
 
   def save_solution(self):
     shape = self.solution_data.shape
@@ -167,6 +170,7 @@ class CrosswordGridModel(QAbstractTableModel):
       for i in range(shape[0]):
         for j in range(shape[1]):
           f.write((self.solution_data[i][j] + '\n').encode('utf-8'))
+    print('Solution saved')
 
   def load_solution(self):
     shape = self.solution_data.shape
@@ -175,6 +179,7 @@ class CrosswordGridModel(QAbstractTableModel):
         for j in range(shape[1]):
           self.solution_data[i][j] = f.readline().strip()
     self.layoutChanged.emit()
+    print('Solution loaded')
 
   def load_grid_data(self, grid_data):
     self.grid_data = grid_data
