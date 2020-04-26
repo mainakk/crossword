@@ -166,11 +166,14 @@ class CrosswordGridModel(QAbstractTableModel):
     status_bar.showMessage("Solution cleared")
 
   def save_solution(self):
+    if not np.any(self.solution_data):
+      return False
     shape = self.solution_data.shape
     with open('solution.txt', 'wb') as f:
       for i in range(shape[0]):
         for j in range(shape[1]):
           f.write((self.solution_data[i][j] + '\n').encode('utf-8'))
+    return True
 
   def load_solution(self):
     shape = self.solution_data.shape
@@ -327,8 +330,8 @@ class CrosswordWidget(QWidget):
     self.setLayout(self.main_layout)
 
   def save_solution(self):
-    self.grid_model.save_solution()
-    status_bar.showMessage("Solution saved")
+    if self.grid_model.save_solution():
+      status_bar.showMessage("Solution saved")
 
 class CrosswordGridWindow(QMainWindow):
   def __init__(self, widget, window_width, window_height):
