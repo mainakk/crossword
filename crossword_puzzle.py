@@ -8,7 +8,7 @@ import crossword
 import ipuz
 import sys
 from PySide2.QtCore import Qt, QAbstractTableModel, QModelIndex, QTimer
-from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QIcon
+from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QIcon,QBrush
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy, QTableView, QWidget, QMainWindow, QApplication, QPushButton
 import os
 import datetime
@@ -241,16 +241,26 @@ class CrosswordGridModel(QAbstractTableModel):
 
     if role == Qt.DisplayRole:
       return self.solution_data[row][column]
-    elif role == Qt.DecorationRole:
-      if clue_index:
-        icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
-        return QIcon(icon_path)
-      else:
-        return None
+    #elif role == Qt.DecorationRole:
+    #  if clue_index:
+    #    icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
+    #    return QIcon(icon_path)
+    #  else:
+    #    return None
     elif role == Qt.BackgroundRole:
-      return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
+      if is_word_cell:
+        if clue_index:
+          icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
+          brush = QBrush()
+          pixmap = QPixmap(icon_path)
+          brush.setTexture(pixmap)
+          return brush
+        else:
+          return QColor(Qt.white)
+      else:
+        return QColor(Qt.black)
     elif role == Qt.FontRole:
-      font = QFont(font_name, 10)
+      font = QFont(font_name, font_size)
       return font
     return None
 
@@ -258,7 +268,6 @@ class CrosswordGridModel(QAbstractTableModel):
     row = index.row()
     column = index.column()
     if role == Qt.EditRole:
-      print(value)
       self.solution_data[row][column] = value
       if status_bar:
         status_bar.clearMessage()
