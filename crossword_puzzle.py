@@ -368,7 +368,8 @@ class CrosswordWidget(QWidget):
 class CrosswordGridWindow(QMainWindow):
   def __init__(self, crossword_index, widget, window_width, window_height):
     QMainWindow.__init__(self)
-    self.setWindowTitle('শব্দছক ' + bangla.convert_english_digit_to_bangla_digit(crossword_index))
+    date = datetime.date.today().strftime("%A, %d %B, %Y")
+    self.setWindowTitle('শব্দছক ' + bangla.convert_english_digit_to_bangla_digit(crossword_index) + '   ' + date)
     self.setCentralWidget(widget)
     self.setFixedSize(window_width, window_height)
     global status_bar
