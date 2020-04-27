@@ -319,8 +319,9 @@ class CrosswordWidget(QWidget):
     self.grid_horizontal_header.hide()
     self.grid_vertical_header = self.grid_table_view.verticalHeader()
     self.grid_vertical_header.setSectionResizeMode(QHeaderView.Fixed)
-    self.grid_vertical_header.setDefaultSectionSize(grid_cell_length)
+    self.grid_vertical_header.setDefaultSectionSize(grid_cell_length * 1.3)
     self.grid_vertical_header.hide()
+
     self.clue_across_model = CrosswordClueModel(clue_across_data, 'পাশাপাশি')
     self.clue_across_table_view = QTableView(self)
     self.clue_across_table_view.setModel(self.clue_across_model)
@@ -343,6 +344,7 @@ class CrosswordWidget(QWidget):
     self.clue_layout.addWidget(self.clue_down_table_view)
     self.clue_widget = QWidget(self)
     self.clue_widget.setLayout(self.clue_layout)
+
     self.buttons_layout = QHBoxLayout(self)
     self.save_button = QPushButton("Save")
     self.load_button = QPushButton("Load")
@@ -355,9 +357,15 @@ class CrosswordWidget(QWidget):
     self.buttons_layout.addWidget(self.clear_button)
     self.buttons_widget = QWidget(self)
     self.buttons_widget.setLayout(self.buttons_layout)
-    self.main_layout = QVBoxLayout(self)
-    self.main_layout.addWidget(self.grid_table_view)
-    self.main_layout.addWidget(self.buttons_widget)
+
+    self.grid_layout = QVBoxLayout(self)
+    self.grid_layout.addWidget(self.grid_table_view)
+    self.grid_layout.addWidget(self.buttons_widget)
+    self.grid_widget = QWidget(self)
+    self.grid_widget.setLayout(self.grid_layout)
+
+    self.main_layout = QHBoxLayout(self)
+    self.main_layout.addWidget(self.grid_widget)
     self.main_layout.addWidget(self.clue_widget)
     self.setLayout(self.main_layout)
 
@@ -400,8 +408,8 @@ def doPuzzle():
 
   grid_cell_length = 24
   shape = grid.shape
-  window_width = grid_cell_length * shape[0] * 2
-  window_height = grid_cell_length * shape[1] * 2.5
+  window_width = grid_cell_length * shape[0] * 3.5
+  window_height = grid_cell_length * shape[1] * 2
 
   app = QApplication(sys.argv)
   widget = CrosswordWidget(crossword_index, grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
