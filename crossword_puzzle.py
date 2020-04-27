@@ -250,7 +250,7 @@ class CrosswordGridModel(QAbstractTableModel):
     elif role == Qt.BackgroundRole:
       return QColor(Qt.white) if is_word_cell else QColor(Qt.black)
     elif role == Qt.FontRole:
-      font = QFont(font_name, font_size)
+      font = QFont(font_name, 10)
       return font
     return None
 
@@ -258,6 +258,7 @@ class CrosswordGridModel(QAbstractTableModel):
     row = index.row()
     column = index.column()
     if role == Qt.EditRole:
+      print(value)
       self.solution_data[row][column] = value
       if status_bar:
         status_bar.clearMessage()
@@ -406,11 +407,10 @@ def doPuzzle():
   #writeTexFile(grid, 'crossword.tex')
   #import pdb;pdb.set_trace()
 
-  grid_cell_length = 24
+  grid_cell_length = 30
   shape = grid.shape
-  window_width = grid_cell_length * shape[0] * 3.5
-  window_height = grid_cell_length * shape[1] * 2
-
+  window_width = grid_cell_length * shape[0] * 3
+  window_height = grid_cell_length * shape[1] * 1.8
   app = QApplication(sys.argv)
   widget = CrosswordWidget(crossword_index, grid, grid_cell_length, puzzle.clues.across(), puzzle.clues.down())
   window = CrosswordGridWindow(crossword_index, widget, window_width, window_height)
