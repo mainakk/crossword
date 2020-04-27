@@ -241,6 +241,8 @@ class CrosswordGridModel(QAbstractTableModel):
 
     if role == Qt.DisplayRole:
       return self.solution_data[row][column]
+    if role == Qt.EditRole:
+      return self.solution_data[row][column]
     #elif role == Qt.DecorationRole:
     #  if clue_index:
     #    icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
