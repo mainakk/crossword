@@ -11,6 +11,7 @@ from PySide2.QtCore import Qt, QAbstractTableModel, QModelIndex, QTimer
 from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QIcon
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy, QTableView, QWidget, QMainWindow, QApplication, QPushButton
 import os
+import datetime
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -24,6 +25,15 @@ def convertBanglaDigitsToEnglishDigits(number):
   for b, e in english_digit_by_bangla_digit.items():
     number = number.replace(b, e)
   return number
+
+def needToFetchFromWebsite():
+  try:
+    with open('crossword-index.txt', 'r') as f:
+      crossword_index = int(f.readline().strip())
+      todays_index = (datetime.date.today() - datetime.date(2020, 4, 27)).days + 7606
+      return todays_index > crossword_index
+  except IOError:
+    return True
 
 def saveImageAndCluesFromWebsite(url):
   headers = requests.utils.default_headers()
@@ -50,6 +60,7 @@ def saveImageAndCluesFromWebsite(url):
   with open('vertical-clues-{}.txt'.format(crossword_index), 'wb') as f:
     f.write(vertical_clues)
 
+  print('Crossword {} has been fetched from website'.format(crossword_index))
   return crossword_index
 
 def convertImageToGrid(filename, grid, puzzle):
@@ -365,9 +376,11 @@ class CrosswordGridWindow(QMainWindow):
 
 def doPuzzle():
   url = 'https://www.anandabazar.com/others/crossword'
-  #crossword_index = saveImageAndCluesFromWebsite(url)
-  with open('crossword-index.txt', 'r') as f:
-    crossword_index = f.readline().strip()
+  if needToFetchFromWebsite():
+    crossword_index = saveImageAndCluesFromWebsite(url)
+  else:
+    with open('crossword-index.txt', 'r') as f:
+      crossword_index = f.readline().strip()
   crossword_len = 15
 
   # Primary data-structure
