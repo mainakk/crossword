@@ -170,7 +170,7 @@ def writeTexFile(grid, filename):
 status_bar = None
 icons_folder = 'icons'
 font_name ='Kalpurush'
-font_size = 13
+font_size = 14
 class CrosswordGridModel(QAbstractTableModel):
   def __init__(self, crossword_index=-1, grid_data=None):
     QAbstractTableModel.__init__(self)
@@ -264,6 +264,8 @@ class CrosswordGridModel(QAbstractTableModel):
     elif role == Qt.FontRole:
       font = QFont(font_name, font_size)
       return font
+    elif role == Qt.TextAlignmentRole:
+      return Qt.AlignCenter
     return None
 
   def setData(self, index, value, role=Qt.EditRole):
@@ -274,6 +276,11 @@ class CrosswordGridModel(QAbstractTableModel):
       if status_bar:
         status_bar.clearMessage()
       return True
+    elif role == Qt.FontRole:
+      font = QFont(font_name, font_size)
+      return font
+    elif role == Qt.TextAlignmentRole:
+      return Qt.AlignCenter
     return False
 
 class CrosswordClueModel(QAbstractTableModel):
