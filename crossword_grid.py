@@ -5,11 +5,11 @@ import os
 import sys
 from datetime import date, timedelta
 import requests
-from PySide2.QtCore import QSize, QAbstractTableModel, Qt
-from PySide2.QtGui import QPixmap, QPalette, QColor
+from PySide2.QtCore import QSize, QAbstractTableModel, Qt, QTimer
+from PySide2.QtGui import QPixmap, QPalette, QColor, QFont, QBrush
 from PySide2.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QVBoxLayout, QTableWidget, \
   QStyledItemDelegate, QTableView, QLabel, QHBoxLayout, QGridLayout, QToolBar, QDialogButtonBox, QStatusBar, QTextEdit, \
-  QWidget
+  QWidget, QMessageBox
 
 url_format = 'https://epaper.anandabazar.com/epaperimages////{}////{}-md-hr-2ll.png'
 
@@ -35,6 +35,10 @@ grid_column_count = 15
 bg_left_border = 10
 bg_ystart = 190
 cv_white = [255, 255, 255]
+
+icons_folder = 'icons'
+font_name = 'Kalpurush'
+font_size = 14
 
 def convertYValToGridVal(y_val):
   y_max = 255
@@ -112,28 +116,128 @@ def saveClueImages(filename):
   cv2.imwrite('right_clues.png', image_right_clues)
 
 class CrosswordGridModel(QAbstractTableModel):
-  def __init__(self, parent=None):
-    super(CrosswordGridModel, self).__init__(parent)
+    def __init__(self, crossword_index, grid_data, statusText, parent=None):
+      super(CrosswordGridModel, self).__init__(parent)
+      self.crossword_index = crossword_index
+      self.load_grid_data(grid_data)
+      shape = grid_data.shape
+      self.solution_data = np.full((shape[0], shape[1]), '', dtype=object)
+      self.statusText = statusText
+      self.timer = QTimer(self)
+      self.timer.timeout.connect(self.save_solution_auto)
+      self.timer.start(5000)
 
-  def rowCount(self, parent):
-    return grid_row_count
+    def clear_solution(self):
+      self.solution_data.fill('')
+      self.layoutChanged.emit()
+      msgBox = QMessageBox(QMessageBox.Information, 'Crossword', 'Progress cleared')
+      msgBox.exec_()
 
-  def columnCount(self, parent):
-    return grid_column_count
+    def save_solution_auto(self):
+      if not np.any(self.solution_data):
+        return False
+      shape = self.solution_data.shape
+      with open('solution-{}.txt'.format(self.crossword_index), 'wb') as f:
+        for i in range(shape[0]):
+          for j in range(shape[1]):
+            f.write((self.solution_data[i][j] + '\n').encode('utf-8'))
 
-  def data(self, index, role):
-    if role == Qt.DisplayRole:
-      return str((index.row() * grid_column_count + index.column()) % 100)
-    elif role == Qt.BackgroundRole:
-      return QColor(Qt.white)
+    def save_solution(self):
+      self.save_solution_auto()
+      msgBox = QMessageBox(QMessageBox.Information, 'Crossword', 'Progress saved')
+      msgBox.exec_()
+
+    def load_solution(self):
+      shape = self.solution_data.shape
+      msgBox = QMessageBox()
+      msgBox.setIcon(QMessageBox.Information)
+      try:
+        with open('solution-{}.txt'.format(self.crossword_index), encoding='utf-8', mode='r') as f:
+          for i in range(shape[0]):
+            for j in range(shape[1]):
+              self.solution_data[i][j] = f.readline().strip()
+        self.layoutChanged.emit()
+        msgBox.setText('Solution loaded')
+      except IOError:
+        msgBox.setText('No saved solution!')
+      msgBox.exec_()
+
+    def load_grid_data(self, grid_data):
+      self.grid_data = grid_data
+      shape = grid_data.shape
+      self.row_count = shape[0]
+      self.column_count = shape[1]
+
+    def rowCount(self, parent):
+      return self.row_count
+
+    def columnCount(self, parent):
+      return self.column_count
+
+    def headerData(self, section, orientation, role):
+      return None
+
+    def flags(self, index):
+      row = index.row()
+      column = index.column()
+      is_word_cell = self.grid_data[row][column][0]
+      if is_word_cell:
+        return Qt.ItemIsEnabled | Qt.ItemIsEditable
+      return Qt.ItemIsEnabled
+
+    def data(self, index, role=Qt.DisplayRole):
+      row = index.row()
+      column = index.column()
+      cell_data = self.grid_data[row][column]
+      is_word_cell = cell_data[0]
+      clue_index = cell_data[1] or cell_data[2]
+
+      if role == Qt.DisplayRole:
+        return self.solution_data[row][column]
+      if role == Qt.EditRole:
+        return self.solution_data[row][column]
+      elif role == Qt.BackgroundRole:
+        if is_word_cell:
+          if clue_index:
+            icon_path = os.path.join(icons_folder, '{}.svg'.format(clue_index))
+            brush = QBrush()
+            pixmap = QPixmap(icon_path)
+            brush.setTexture(pixmap)
+            return brush
+          else:
+            return QColor(Qt.white)
+        else:
+          return QColor(Qt.black)
+      elif role == Qt.FontRole:
+        font = QFont(font_name, font_size)
+        return font
+      elif role == Qt.TextAlignmentRole:
+        return Qt.AlignCenter
+      return None
+
+    def setData(self, index, value, role=Qt.EditRole):
+      row = index.row()
+      column = index.column()
+      if role == Qt.EditRole:
+        self.solution_data[row][column] = value
+        return True
+      elif role == Qt.FontRole:
+        font = QFont(font_name, font_size)
+        return font
+      elif role == Qt.TextAlignmentRole:
+        return Qt.AlignCenter
+      return False
 
 class Form(QDialog):
-  def __init__(self, crossword_index, parent=None):
+  def __init__(self, crossword_index, grid_data, parent=None):
     super(Form, self).__init__(parent)
     self.setWindowTitle('Crossword {}    {}'.format(crossword_index, date.today().strftime("%A, %d %B, %Y")))
     self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    tableModel = CrosswordGridModel(self)
+    statusText = QLabel(self)
+    statusText.setAlignment(Qt.AlignRight)
+
+    tableModel = CrosswordGridModel(crossword_index, grid_data, statusText, self)
     tableView = QTableView(self)
     tableView.horizontalHeader().hide()
     tableView.verticalHeader().hide()
@@ -159,26 +263,28 @@ class Form(QDialog):
     down_pixmap = QPixmap('down_clues.png')
     down_label.setPixmap(down_pixmap)
 
+    saveButton = QPushButton('Save progress', self)
+    loadButton = QPushButton('Load progress', self)
+    clearButton = QPushButton('Clear progress', self)
+    saveButton.clicked.connect(tableModel.save_solution)
+    loadButton.clicked.connect(tableModel.load_solution)
+    clearButton.clicked.connect(tableModel.clear_solution)
     bbox = QDialogButtonBox(self)
-    saveButton = bbox.addButton('Save progress', QDialogButtonBox.AcceptRole)
-    loadButton = bbox.addButton('Load progress', QDialogButtonBox.AcceptRole)
-    clearButton = bbox.addButton('Clear progress', QDialogButtonBox.AcceptRole)
+    bbox.addButton(saveButton, QDialogButtonBox.AcceptRole)
+    bbox.addButton(loadButton, QDialogButtonBox.AcceptRole)
+    bbox.addButton(clearButton, QDialogButtonBox.AcceptRole)
 
-    statusText = QLabel(self)
-    statusText.setText('Status not set!')
-    statusText.setAlignment(Qt.AlignRight)
-
-    statusAndBBoxLayout = QVBoxLayout(self)
-    statusAndBBoxLayout.addWidget(statusText)
-    statusAndBBoxLayout.addWidget(bbox)
-    statusAndBBoxWidget = QWidget(self)
-    statusAndBBoxWidget.setLayout(statusAndBBoxLayout)
+    #statusAndBBoxLayout = QVBoxLayout(self)
+    #statusAndBBoxLayout.addWidget(statusText)
+    #statusAndBBoxLayout.addWidget(bbox)
+    #statusAndBBoxWidget = QWidget(self)
+    #statusAndBBoxWidget.setLayout(statusAndBBoxLayout)
 
     layout = QGridLayout(self)
     layout.addWidget(tableView, 0, 0)
     layout.addWidget(right_label, 0, 1, Qt.AlignLeft | Qt.AlignTop)
     layout.addWidget(down_label, 1, 0, Qt.AlignLeft | Qt.AlignTop)
-    layout.addWidget(statusAndBBoxWidget, 1, 1, Qt.AlignHCenter | Qt.AlignBottom)
+    layout.addWidget(bbox, 1, 1, Qt.AlignHCenter | Qt.AlignBottom)
     self.setLayout(layout)
 
     windowWidth = tableView.columnWidth(0) * grid_column_count + grid_column_count - 1 + right_clues_right - right_clues_left + layout.horizontalSpacing() + 27
@@ -193,6 +299,6 @@ if __name__ == '__main__':
   saveClueImages(imgFile)
 
   app = QApplication(sys.argv)
-  form = Form(crossword_index)
+  form = Form(crossword_index, grid)
   form.show()
   sys.exit(app.exec_())

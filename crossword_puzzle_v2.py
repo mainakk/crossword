@@ -117,7 +117,7 @@ class CrosswordGridModel(QAbstractTableModel):
     self.layoutChanged.emit()
     status_bar.showMessage("Solution cleared")
 
-  def save_solution(self):
+  def save_solution_auto(self):
     if not np.any(self.solution_data):
       return False
     shape = self.solution_data.shape
