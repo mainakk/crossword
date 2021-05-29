@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import date, timedelta
 import requests
+import bangla
 from PySide2.QtCore import QSize, QAbstractTableModel, Qt, QTimer
 from PySide2.QtGui import QPixmap, QPalette, QColor, QFont, QBrush
 from PySide2.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QVBoxLayout, QTableWidget, \
@@ -12,6 +13,7 @@ from PySide2.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QVB
   QWidget, QMessageBox
 
 url_format = 'https://epaper.anandabazar.com/epaperimages////{}////{}-md-hr-2ll.png'
+app_title = 'শব্দছক'
 
 grid_left = 30
 grid_right = 512
@@ -116,13 +118,12 @@ def saveClueImages(filename):
   cv2.imwrite('right_clues.png', image_right_clues)
 
 class CrosswordGridModel(QAbstractTableModel):
-    def __init__(self, crossword_index, grid_data, statusText, parent=None):
+    def __init__(self, crossword_index, grid_data, parent=None):
       super(CrosswordGridModel, self).__init__(parent)
       self.crossword_index = crossword_index
       self.load_grid_data(grid_data)
       shape = grid_data.shape
       self.solution_data = np.full((shape[0], shape[1]), '', dtype=object)
-      self.statusText = statusText
       self.timer = QTimer(self)
       self.timer.timeout.connect(self.save_solution_auto)
       self.timer.start(5000)
@@ -130,7 +131,7 @@ class CrosswordGridModel(QAbstractTableModel):
     def clear_solution(self):
       self.solution_data.fill('')
       self.layoutChanged.emit()
-      msgBox = QMessageBox(QMessageBox.Information, 'Crossword', 'Progress cleared')
+      msgBox = QMessageBox(QMessageBox.Information, app_title, 'Progress cleared')
       msgBox.exec_()
 
     def save_solution_auto(self):
@@ -144,13 +145,14 @@ class CrosswordGridModel(QAbstractTableModel):
 
     def save_solution(self):
       self.save_solution_auto()
-      msgBox = QMessageBox(QMessageBox.Information, 'Crossword', 'Progress saved')
+      msgBox = QMessageBox(QMessageBox.Information, app_title, 'Progress saved')
       msgBox.exec_()
 
     def load_solution(self):
       shape = self.solution_data.shape
       msgBox = QMessageBox()
       msgBox.setIcon(QMessageBox.Information)
+      msgBox.setWindowTitle(app_title)
       try:
         with open('solution-{}.txt'.format(self.crossword_index), encoding='utf-8', mode='r') as f:
           for i in range(shape[0]):
@@ -231,18 +233,13 @@ class CrosswordGridModel(QAbstractTableModel):
 class Form(QDialog):
   def __init__(self, crossword_index, grid_data, parent=None):
     super(Form, self).__init__(parent)
-    self.setWindowTitle('Crossword {}    {}'.format(crossword_index, date.today().strftime("%A, %d %B, %Y")))
+    self.setWindowTitle('{} {}    {}'.format(app_title, bangla.convert_english_digit_to_bangla_digit(crossword_index), date.today().strftime("%A, %d %B, %Y")))
     self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    statusText = QLabel(self)
-    statusText.setAlignment(Qt.AlignRight)
-
-    tableModel = CrosswordGridModel(crossword_index, grid_data, statusText, self)
+    tableModel = CrosswordGridModel(crossword_index, grid_data, self)
     tableView = QTableView(self)
     tableView.horizontalHeader().hide()
     tableView.verticalHeader().hide()
-    #tableView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    #tableView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     tableView.setModel(tableModel)
     for i in range(grid_row_count):
       tableView.setRowHeight(i, grid_cell_size)
@@ -250,10 +247,6 @@ class Form(QDialog):
       tableView.setColumnWidth(i, grid_cell_size)
     print(tableView.rowHeight(10))
     print(tableView.columnWidth(10))
-
-    #rect = tableView.geometry()
-    #rect.setWidth(tableView.columnWidth(0) * grid_column_count + grid_column_count - 1)
-    #tableView.setGeometry(rect)
 
     right_label = QLabel(self)
     right_pixmap = QPixmap('right_clues.png')
@@ -273,12 +266,6 @@ class Form(QDialog):
     bbox.addButton(saveButton, QDialogButtonBox.AcceptRole)
     bbox.addButton(loadButton, QDialogButtonBox.AcceptRole)
     bbox.addButton(clearButton, QDialogButtonBox.AcceptRole)
-
-    #statusAndBBoxLayout = QVBoxLayout(self)
-    #statusAndBBoxLayout.addWidget(statusText)
-    #statusAndBBoxLayout.addWidget(bbox)
-    #statusAndBBoxWidget = QWidget(self)
-    #statusAndBBoxWidget.setLayout(statusAndBBoxLayout)
 
     layout = QGridLayout(self)
     layout.addWidget(tableView, 0, 0)
