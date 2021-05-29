@@ -8,7 +8,7 @@ import requests
 from PySide2.QtCore import QSize, QAbstractTableModel, Qt
 from PySide2.QtGui import QPixmap, QPalette, QColor
 from PySide2.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QVBoxLayout, QTableWidget, \
-  QStyledItemDelegate, QTableView, QLabel, QHBoxLayout, QGridLayout
+  QStyledItemDelegate, QTableView, QLabel, QHBoxLayout, QGridLayout, QToolBar, QDialogButtonBox
 
 url_format = 'https://epaper.anandabazar.com/epaperimages////{}////{}-md-hr-2ll.png'
 
@@ -130,6 +130,7 @@ class Form(QDialog):
   def __init__(self, parent=None):
     super(Form, self).__init__(parent)
     self.setWindowTitle("Crossword")
+    self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     tableModel = CrosswordGridModel(self)
     tableView = QTableView(self)
@@ -157,14 +158,20 @@ class Form(QDialog):
     down_pixmap = QPixmap('down_clues.png')
     down_label.setPixmap(down_pixmap)
 
+    bbox = QDialogButtonBox(self)
+    saveButton = bbox.addButton('Save progress', QDialogButtonBox.AcceptRole)
+    loadButton = bbox.addButton('Load progress', QDialogButtonBox.AcceptRole)
+    clearButton = bbox.addButton('Clear progress', QDialogButtonBox.AcceptRole)
+
     layout = QGridLayout(self)
-    layout.addWidget(tableView, 0, 0)
+    layout.addWidget(tableView, 0, 0, 2, 1)
     layout.addWidget(right_label, 0, 1, Qt.AlignLeft | Qt.AlignTop)
-    layout.addWidget(down_label, 1, 0, Qt.AlignLeft | Qt.AlignTop)
+    layout.addWidget(bbox, 1, 1, Qt.AlignHCenter | Qt.AlignBottom)
+    layout.addWidget(down_label, 2, 0, Qt.AlignLeft | Qt.AlignTop)
     self.setLayout(layout)
 
     windowWidth = tableView.columnWidth(0) * grid_column_count + grid_column_count - 1 + right_clues_right - right_clues_left + layout.horizontalSpacing() + 10
-    windowHeight = tableView.rowHeight(0) * grid_row_count + grid_row_count - 1 + down_clues_bottom - down_clues_top + layout.verticalSpacing() + 10
+    windowHeight = tableView.rowHeight(0) * grid_row_count + grid_row_count - 1 + down_clues_bottom - down_clues_top + layout.verticalSpacing() + 18
     self.resize(QSize(windowWidth, windowHeight))
 
 if __name__ == '__main__':
