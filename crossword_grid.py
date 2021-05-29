@@ -8,7 +8,8 @@ import requests
 from PySide2.QtCore import QSize, QAbstractTableModel, Qt
 from PySide2.QtGui import QPixmap, QPalette, QColor
 from PySide2.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QVBoxLayout, QTableWidget, \
-  QStyledItemDelegate, QTableView, QLabel, QHBoxLayout, QGridLayout, QToolBar, QDialogButtonBox
+  QStyledItemDelegate, QTableView, QLabel, QHBoxLayout, QGridLayout, QToolBar, QDialogButtonBox, QStatusBar, QTextEdit, \
+  QWidget
 
 url_format = 'https://epaper.anandabazar.com/epaperimages////{}////{}-md-hr-2ll.png'
 
@@ -127,9 +128,9 @@ class CrosswordGridModel(QAbstractTableModel):
       return QColor(Qt.white)
 
 class Form(QDialog):
-  def __init__(self, parent=None):
+  def __init__(self, crossword_index, parent=None):
     super(Form, self).__init__(parent)
-    self.setWindowTitle("Crossword")
+    self.setWindowTitle('Crossword {}    {}'.format(crossword_index, date.today().strftime("%A, %d %B, %Y")))
     self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     tableModel = CrosswordGridModel(self)
@@ -163,16 +164,26 @@ class Form(QDialog):
     loadButton = bbox.addButton('Load progress', QDialogButtonBox.AcceptRole)
     clearButton = bbox.addButton('Clear progress', QDialogButtonBox.AcceptRole)
 
+    statusText = QLabel(self)
+    statusText.setText('Status not set!')
+    statusText.setAlignment(Qt.AlignRight)
+
+    statusAndBBoxLayout = QVBoxLayout(self)
+    statusAndBBoxLayout.addWidget(statusText)
+    statusAndBBoxLayout.addWidget(bbox)
+    statusAndBBoxWidget = QWidget(self)
+    statusAndBBoxWidget.setLayout(statusAndBBoxLayout)
+
     layout = QGridLayout(self)
-    layout.addWidget(tableView, 0, 0, 2, 1)
+    layout.addWidget(tableView, 0, 0)
     layout.addWidget(right_label, 0, 1, Qt.AlignLeft | Qt.AlignTop)
-    layout.addWidget(bbox, 1, 1, Qt.AlignHCenter | Qt.AlignBottom)
-    layout.addWidget(down_label, 2, 0, Qt.AlignLeft | Qt.AlignTop)
+    layout.addWidget(down_label, 1, 0, Qt.AlignLeft | Qt.AlignTop)
+    layout.addWidget(statusAndBBoxWidget, 1, 1, Qt.AlignHCenter | Qt.AlignBottom)
     self.setLayout(layout)
 
-    windowWidth = tableView.columnWidth(0) * grid_column_count + grid_column_count - 1 + right_clues_right - right_clues_left + layout.horizontalSpacing() + 10
-    windowHeight = tableView.rowHeight(0) * grid_row_count + grid_row_count - 1 + down_clues_bottom - down_clues_top + layout.verticalSpacing() + 18
-    self.resize(QSize(windowWidth, windowHeight))
+    windowWidth = tableView.columnWidth(0) * grid_column_count + grid_column_count - 1 + right_clues_right - right_clues_left + layout.horizontalSpacing() + 27
+    windowHeight = tableView.rowHeight(0) * grid_row_count + grid_row_count - 1 + down_clues_bottom - down_clues_top + layout.verticalSpacing() + 10
+    self.setFixedSize(QSize(windowWidth, windowHeight))
 
 if __name__ == '__main__':
   crossword_index = saveImageAndCluesFromWebsite(date.today())
@@ -182,6 +193,6 @@ if __name__ == '__main__':
   saveClueImages(imgFile)
 
   app = QApplication(sys.argv)
-  form = Form()
+  form = Form(crossword_index)
   form.show()
   sys.exit(app.exec_())
