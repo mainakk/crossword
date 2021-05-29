@@ -42,6 +42,21 @@ icons_folder = 'icons'
 font_name = 'Kalpurush'
 font_size = 14
 
+def generateIconFiles(icons_folder, icon_width, icon_height):
+  font_height = icon_height // 3
+  for root, _, files in os.walk(icons_folder):
+    for f in files:
+      os.unlink(os.path.join(root, f))
+
+  for i in range(1, 100):
+    icons_path = os.path.join(icons_folder, '{}.svg'.format(i))
+    with open(icons_path, 'wb') as f:
+      code = r'<?xml version="1.0" encoding="UTF-8"?>' + '\n'
+      code += r'<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">'.format(icon_width, icon_height) + '\n'
+      code += r'<text x="0" y="{}" font-size="{}px">'.format(font_height, font_height) + bangla.convert_english_digit_to_bangla_digit(str(i)) + r'</text>' + '\n'
+      code += r'</svg>'
+      f.write(code.encode('utf-8'))
+
 def convertYValToGridVal(y_val):
   y_max = 255
   y_min = 155
@@ -245,8 +260,7 @@ class Form(QDialog):
       tableView.setRowHeight(i, grid_cell_size)
     for i in range(grid_column_count):
       tableView.setColumnWidth(i, grid_cell_size)
-    print(tableView.rowHeight(10))
-    print(tableView.columnWidth(10))
+    generateIconFiles(icons_folder, tableView.columnWidth(0), tableView.rowHeight(0))
 
     right_label = QLabel(self)
     right_pixmap = QPixmap('right_clues.png')
