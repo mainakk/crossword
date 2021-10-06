@@ -1,3 +1,3 @@
 # crossword
 
-Playable crossword puzzle from news website
+Generate playable crossword puzzle from html pages of news website
